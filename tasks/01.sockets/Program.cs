@@ -160,9 +160,57 @@ namespace Sockets
         private static byte[] ProcessRequest(Request request)
         {
             // TODO
-            var head = new StringBuilder("OK");
+            var head = new StringBuilder("HTTP/1.1 404 Not Found\r\n");
             var body = new byte[0];
-            return CreateResponseBytes(head, body);
+            var uri = request.RequestUri;
+            var index = request.RequestUri.IndexOf('?');
+            var parameters = "";
+            var haveParams = false;
+            NameValueCollection paramsCollection = null;
+            if (index > 0)
+            {
+                parameters = request.RequestUri.Substring(index);
+                haveParams = true;
+                uri = request.RequestUri.Substring(0, index);
+                paramsCollection = HttpUtility.ParseQueryString(parameters);
+            }
+
+            switch (uri)
+            {
+                case "/":
+                    goto case "/hello.html";
+
+                case "/hello.html":
+                    body = File.ReadAllBytes("hello.html");
+                    if (haveParams)
+                        body = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(body)
+                        .Replace("{{World}}", paramsCollection["name"])
+                        .Replace("{{Hello}}", paramsCollection["greeting"]));
+                    head = CreateHeader("text/html", body.Length);
+                    return CreateResponseBytes(head, body);
+
+                case "/groot.gif":
+                    body = File.ReadAllBytes("groot.gif");
+                    head = CreateHeader("image/gif", body.Length);
+                    return CreateResponseBytes(head, body);
+
+                case "/time.html":
+                    body = File.ReadAllBytes("time.template.html");
+                    body = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(body).Replace("{{ServerTime}}", DateTime.Now.ToString()));
+                    head = CreateHeader("text/html", body.Length);
+                    return CreateResponseBytes(head, body);
+
+                default:
+                    return CreateResponseBytes(head, body);
+            }
+        }
+
+        private static StringBuilder CreateHeader(string contentType, int contentLength, string statusLine = "HTTP/1.1 200 OK\r\n")
+        {
+            var head = new StringBuilder(statusLine);
+            head.Append($"Content-Type: {contentType}; charset=utf-8\r\n");
+            head.Append($"Content-Length:{contentLength}\r\n\r\n");
+            return head;
         }
 
         // Собирает ответ в виде массива байт из байтов строки head и байтов body.

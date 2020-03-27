@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 using System;
 using System.Globalization;
 using System.IO;
@@ -34,23 +35,39 @@ namespace BadNews
         {
             services.AddSingleton<INewsRepository, NewsRepository>();
             services.AddSingleton<INewsModelBuilder, NewsModelBuilder>();
+            var mvc = services.AddControllersWithViews();
+            if (env.IsDevelopment())
+                mvc.AddRazorRuntimeCompilation();
         }
 
         // В этом методе конфигурируется последовательность обработки HTTP-запроса
         public void Configure(IApplicationBuilder app)
         {
-            app.UseDeveloperExceptionPage();
+            if (env.IsDevelopment())
+                app.UseDeveloperExceptionPage();
+            else
+                app.UseExceptionHandler("/Errors/Exception");
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+            app.UseStatusCodePagesWithReExecute("/StatusCode/{0}");
 
-            app.Map("/news", newsApp =>
+
+            app.UseRouting();
+            app.UseEndpoints(endpoints =>
             {
-                newsApp.Map("/fullarticle", fullArticleApp =>
+                endpoints.MapControllerRoute("status-code", "StatusCode/{code?}", new
                 {
-                    fullArticleApp.Run(RenderFullArticlePage);
+                    controller = "Errors",
+                    action = "StatusCode"
                 });
+                endpoints.MapControllerRoute("default", "{controller=News}/{action=Index}/{id?}");
+            });
 
-                newsApp.Run(RenderIndexPage);
+            app.UseSerilogRequestLogging();
+
+            app.Map("/news/fullarticle", fullArticleApp =>
+            {
+                fullArticleApp.Run(RenderFullArticlePage);
             });
 
             app.MapWhen(context => context.Request.Path == "/", rootPathApp =>

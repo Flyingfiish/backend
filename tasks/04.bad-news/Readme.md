@@ -645,6 +645,8 @@ if (model == null)
 {    
 }
 ```
+
+
 4. Добавь внутрь разметку из `/$Content/Drafts/FeaturedArticles.html`
 5. Сделай так, чтобы внутри показывались новости из `Model.FeaturedArticles`
 
